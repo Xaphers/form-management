@@ -49,13 +49,17 @@ export default function AnalyticsPage() {
     try {
       setError("");
 
-      const response = await fetch("/api/backend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "auth.me" }),
-        cache: "no-store",
-        signal: AbortSignal.timeout(15000),
-      });
+      // Cek sesi dan ambil data analytics secara paralel
+      const [response] = await Promise.all([
+        fetch("/api/backend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "auth.me" }),
+          cache: "no-store",
+          signal: AbortSignal.timeout(15000),
+        }),
+        loadAnalytics(),
+      ]);
 
       const result = await response.json();
 
@@ -69,7 +73,6 @@ export default function AnalyticsPage() {
       }
 
       setUser(result.user);
-      await loadAnalytics();
     } catch (err) {
       setError(
         err instanceof Error
