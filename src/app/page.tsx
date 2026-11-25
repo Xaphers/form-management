@@ -1,215 +1,309 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-export default function LoginPage() {
-  const [isRegister, setIsRegister] = useState(false);
+interface Stand {
+  standId: string;
+  eventId: string;
+  eventName: string;
+  standName: string;
+  registrationStatus: string;
+  standStatus: string;
+  createdAt: string;
+}
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+export default function StandHolderDashboard() {
   const [name, setName] = useState("");
-
-  const [loading, setLoading] = useState(false);
+  const [stands, setStands] = useState<Stand[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [standsLoading, setStandsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    setSuccess("");
+  async function loadMyStands() {
+    setStandsLoading(true);
 
     try {
       const response = await fetch("/api/backend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: isRegister ? "auth.register" : "auth.login",
-          data: isRegister
-            ? { name, email, password }
-            : { email, password },
+          action: "stands.my",
         }),
+        cache: "no-store",
       });
 
       const result = await response.json();
 
-      if (!result.success) {
-        throw new Error(result.message || "Terjadi kesalahan.");
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Gagal mengambil data stand.");
       }
 
-      if (isRegister) {
-        setSuccess("Account created successfully! Please sign in.");
-        setIsRegister(false);
-        setName("");
-        setPassword("");
-      } else {
-        if (result.user.role === "super_admin") {
-          window.location.href = "/admin";
-        } else {
-          window.location.href = "/stand-holder";
-        }
-      }
+      setStands(result.stands || []);
+      setError("");
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Terjadi kesalahan."
+        err instanceof Error ? err.message : "Gagal mengambil data stand."
       );
     } finally {
-      setLoading(false);
+      setStandsLoading(false);
     }
   }
 
-  function switchMode(register: boolean) {
-    setIsRegister(register);
-    setError("");
-    setSuccess("");
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+
+    async function checkSession() {
+      try {
+        // Cek sesi dan ambil data stand secara paralel
+        const [response] = await Promise.all([
+          fetch("/api/backend", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "auth.me" }),
+          }),
+          loadMyStands(),
+        ]);
+
+        const result = await response.json();
+
+        if (!result.success || result.user?.role !== "stand_holder") {
+          window.location.href = "/";
+          return;
+        }
+
+        setName(result.user.name);
+
+        // Perbarui data setiap 60 detik
+        interval = setInterval(() => {
+          loadMyStands();
+        }, 60000);
+
+      } catch {
+        window.location.href = "/";
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    checkSession();
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, []);
+
+  async function logout() {
+    try {
+      await fetch("/api/backend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "auth.logout" }),
+      });
+    } finally {
+      window.location.href = "/";
+    }
   }
 
+  function statusStyle(status: string) {
+    switch (String(status).toLowerCase()) {
+      case "approved":
+        return "bg-green-100 text-green-700";
+
+      case "rejected":
+        return "bg-red-100 text-red-700";
+
+      case "active":
+        return "bg-blue-100 text-blue-700";
+
+      default:
+        return "bg-yellow-100 text-yellow-700";
+    }
+  }
+
+  const activeCount = stands.filter(
+    (stand) => stand.standStatus === "active"
+  ).length;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-slate-50">
+        <p className="text-slate-500">Loading dashboard...</p>
+      </div>
+    );
+  }
+
+  if (!name) return null;
+
   return (
-    <main className="min-h-screen bg-[#f5f7fb] flex">
-      <section className="hidden lg:flex lg:w-1/2 bg-[#142b50] text-white p-16 flex-col justify-between">
-        <div>
-          <div className="text-2xl font-bold tracking-wide">
-            <span className="text-blue-400">Form</span>
-          </div>
+    <main className="min-h-screen bg-slate-50 p-6 md:p-8">
+      <div className="max-w-5xl mx-auto">
 
-          <div className="mt-32 max-w-lg">
-            <p className="text-blue-300 text-sm font-semibold tracking-[0.25em] uppercase">
-              Event Feedback Platform
-            </p>
-
-            <h1 className="text-5xl font-bold leading-tight mt-5">
-              Every Event.
-              <br />
-              Every Experience.
-              <br />
-              Better Together.
+        <header className="flex flex-wrap justify-between items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">
+              Form
             </h1>
-
-            <p className="text-blue-100/70 mt-7 leading-7">
-              Manage your events, stands, and participant feedback
-              through one integrated platform.
-            </p>
-          </div>
-        </div>
-
-        <p className="text-sm text-blue-200/60">
-          Form Management Platform © 2026
-        </p>
-      </section>
-
-      <section className="flex-1 flex items-center justify-center p-6">
-        <div className="w-full max-w-md">
-          <div className="lg:hidden text-xl font-bold text-[#142b50] mb-12">
-            Form Management
-          </div>
-
-          <div className="mb-10">
-            <p className="text-sm font-semibold text-blue-600">
-              {isRegister ? "JOIN FORM" : "WELCOME BACK"}
-            </p>
-
-            <h2 className="text-3xl font-bold text-slate-900 mt-3">
-              {isRegister ? "Create your account" : "Sign in to your account"}
-            </h2>
-
-            <p className="text-slate-500 mt-3">
-              {isRegister
-                ? "Register as a Stand Holder to manage your event stand."
-                : "Enter your credentials to access your dashboard."}
+            <p className="text-slate-500 text-sm">
+              Stand Holder Portal
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {isRegister && (
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  maxLength={100}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter your full name"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                />
-              </div>
-            )}
+          <button
+            onClick={logout}
+            className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700 transition"
+          >
+            Sign Out
+          </button>
+        </header>
 
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@example.com"
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Password
-              </label>
-              <input
-                type="password"
-                required
-                minLength={10}
-                maxLength={128}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Minimum 10 characters"
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-              />
-            </div>
-
-            {error && (
-              <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-600">
-                {error}
-              </div>
-            )}
-
-            {success && (
-              <div className="rounded-xl bg-green-50 border border-green-200 p-3 text-sm text-green-700">
-                {success}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-xl bg-[#1d4ed8] py-4 font-semibold text-white shadow-lg shadow-blue-900/15 transition hover:bg-blue-700 disabled:opacity-60"
-            >
-              {loading
-                ? "Please wait..."
-                : isRegister
-                  ? "Create Account"
-                  : "Sign In"}
-            </button>
-          </form>
-
-          <div className="text-center mt-7 text-sm text-slate-500">
-            {isRegister ? "Already have an account?" : "Don't have an account?"}
-            {" "}
-            <button
-              type="button"
-              onClick={() => switchMode(!isRegister)}
-              className="font-semibold text-blue-600 hover:text-blue-800"
-            >
-              {isRegister ? "Sign In" : "Create Account"}
-            </button>
-          </div>
-
-          <p className="text-center text-xs text-slate-400 mt-10">
-            Secure access · Form Management System
+        <section className="mt-12">
+          <p className="text-blue-600 font-semibold text-sm">
+            STAND HOLDER DASHBOARD
           </p>
-        </div>
-      </section>
+
+          <h2 className="text-3xl font-bold mt-2 text-slate-900">
+            Welcome, {name}!
+          </h2>
+
+          <p className="text-slate-500 mt-3">
+            Manage your registered stands and participant feedback.
+          </p>
+
+          <div className="mt-6 flex flex-wrap items-center gap-4">
+            <a
+                href="/stand-holder/registration"
+                className="rounded-xl bg-indigo-600 px-6 py-3 text-base font-semibold text-white hover:bg-indigo-700"
+            >
+                Register a Stand
+            </a>
+
+            <a
+            href="/stand-holder/forms"
+            className="rounded-xl bg-slate-900 px-6 py-3 text-base font-semibold text-white hover:bg-slate-800"
+            >
+            Manage Forms
+            </a>
+
+
+            <a
+            href="/stand-holder/responses"
+            className="rounded-xl bg-emerald-600 px-6 py-3 text-base font-semibold text-white hover:bg-emerald-700"
+            >
+           My Responses
+            </a>
+
+</div>
+        </section>
+
+        <section className="grid md:grid-cols-3 gap-5 mt-10">
+          <div className="bg-white border rounded-2xl p-6">
+            <p className="text-slate-500 text-sm">My Stands</p>
+            <p className="text-3xl font-bold mt-4 text-slate-900">
+              {stands.length}
+            </p>
+          </div>
+
+          <div className="bg-white border rounded-2xl p-6">
+            <p className="text-slate-500 text-sm">Active Stands</p>
+            <p className="text-3xl font-bold mt-4 text-green-600">
+              {activeCount}
+            </p>
+          </div>
+
+          <div className="bg-white border rounded-2xl p-6">
+            <p className="text-slate-500 text-sm">Total Responses</p>
+            <p className="text-3xl font-bold mt-4 text-slate-900">
+              —
+            </p>
+          </div>
+        </section>
+
+        <section className="mt-10 bg-white border border-slate-200 rounded-2xl overflow-hidden">
+
+          <div className="p-6 border-b flex flex-wrap justify-between items-center gap-3">
+            <div>
+              <h3 className="text-xl font-bold text-slate-900">
+                My Registered Stands
+              </h3>
+
+              <p className="text-sm text-slate-500 mt-1">
+                Monitor your stand registration status.
+              </p>
+            </div>
+
+            <button
+              onClick={loadMyStands}
+              disabled={standsLoading}
+              className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {standsLoading ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
+
+          {error && (
+            <div className="m-5 rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          {stands.length === 0 ? (
+            <div className="p-12 text-center">
+              <p className="font-semibold text-slate-700">
+                No registered stands yet
+              </p>
+
+              <p className="text-sm text-slate-500 mt-2">
+                Register your first stand to get started.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {stands.map((stand) => (
+                <div
+                  key={stand.standId}
+                  className="p-6 flex flex-wrap justify-between items-center gap-4"
+                >
+                  <div>
+                    <h4 className="font-bold text-slate-900">
+                      {stand.standName}
+                    </h4>
+
+                    <p className="text-sm text-slate-500 mt-1">
+                      {stand.eventName}
+                    </p>
+
+                    <p className="text-xs text-slate-400 mt-2">
+                      {stand.standId}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <span
+                      className={`rounded-full px-3 py-1.5 text-xs font-semibold ${statusStyle(stand.registrationStatus)}`}
+                    >
+                      {stand.registrationStatus}
+                    </span>
+
+                    <span
+                      className={`rounded-full px-3 py-1.5 text-xs font-semibold ${statusStyle(stand.standStatus)}`}
+                    >
+                      {stand.standStatus}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="px-6 py-3 bg-slate-50 border-t">
+            <p className="text-xs text-slate-400">
+              Stand status is automatically refreshed every 60 seconds.
+            </p>
+          </div>
+
+        </section>
+      </div>
     </main>
   );
 }
