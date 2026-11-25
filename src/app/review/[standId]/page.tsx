@@ -203,7 +203,7 @@ function PublicReviewContent() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+      <main ="min-h-screen bg-slate-50 flex items-center justify-center p-6">
         <div className="text-center">
           <div className="mx-auto mb-4 h-9 w-9 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
           <p className="text-sm text-slate-500">
@@ -378,7 +378,7 @@ function PublicReviewContent() {
                       updateAnswer(question.questionId, e.target.value)
                     }
                     placeholder="Your answer..."
-                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                    className="w-full rounded-xl border border-gray-200 bg-[#F5F7FB] px-4 py-3 text-[#142B50] placeholder:text-gray-400 focus:border-[#142B50] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#142B50]/10"
                   />
                 )}
 
@@ -392,7 +392,7 @@ function PublicReviewContent() {
                       updateAnswer(question.questionId, e.target.value)
                     }
                     placeholder="Write your answer here..."
-                    className="w-full resize-y rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                    className="w-full rounded-xl border border-gray-200 bg-[#F5F7FB] px-4 py-3 text-[#142B50] placeholder:text-gray-400 focus:border-[#142B50] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#142B50]/10"
                   />
                 )}
 
