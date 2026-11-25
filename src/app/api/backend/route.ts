@@ -3,6 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 const SCRIPT_URL = process.env.APPS_SCRIPT_URL;
 
+// Cache singkat untuk hasil auth.me agar tidak selalu memanggil Apps Script.
+// Hanya hidup selama instance fungsi masih aktif.
+const ME_CACHE_TTL_MS = 2 * 60 * 1000;
+const meCache = new Map<string, { at: number; body: unknown }>();
+
 export async function POST(request: NextRequest) {
   try {
     if (!SCRIPT_URL) {
@@ -27,8 +32,11 @@ export async function POST(request: NextRequest) {
       "public.review.submit",
     ];
 
+    let sessionToken: string | undefined;
+
     if (!publicActions.includes(action)) {
       const token = request.cookies.get("nfc_session")?.value;
+      sessionToken = token;
 
       if (!token) {
         return NextResponse.json(
@@ -41,6 +49,14 @@ export async function POST(request: NextRequest) {
       }
 
       data.token = token;
+
+      if (action === "auth.me") {
+        const hit = meCache.get(token);
+
+        if (hit && Date.now() - hit.at < ME_CACHE_TTL_MS) {
+          return NextResponse.json(hit.body);
+        }
+      }
     }
 
     const response = await fetch(SCRIPT_URL, {
@@ -67,6 +83,16 @@ export async function POST(request: NextRequest) {
 
     const output = { ...result };
     delete output.token;
+
+    if (sessionToken) {
+      if (action === "auth.me" && result.success) {
+        meCache.set(sessionToken, { at: Date.now(), body: output });
+      }
+
+      if (action === "auth.logout") {
+        meCache.delete(sessionToken);
+      }
+    }
 
     const nextResponse = NextResponse.json(output);
 
