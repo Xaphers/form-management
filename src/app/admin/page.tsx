@@ -26,11 +26,19 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function checkSession() {
       try {
-        const response = await fetch("/api/backend", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "auth.me" }),
-        });
+        // Jalankan cek sesi dan ambil data secara paralel
+        const [response, analyticsResponse] = await Promise.all([
+          fetch("/api/backend", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "auth.me" }),
+          }),
+          fetch("/api/backend", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "analytics.get" }),
+          }),
+        ]);
 
         const result = await response.json();
 
@@ -40,12 +48,6 @@ export default function AdminDashboard() {
         }
 
         setUser(result.user);
-
-        const analyticsResponse = await fetch("/api/backend", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "analytics.get" }),
-        });
 
         const analyticsResult = await analyticsResponse.json();
 
