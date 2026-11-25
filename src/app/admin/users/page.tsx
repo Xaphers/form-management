@@ -34,14 +34,18 @@ export default function UsersPage() {
 
   async function checkSession() {
     try {
-      const response = await fetch("/api/backend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "auth.me",
-          data: {},
+      // Cek sesi dan ambil daftar user secara paralel
+      const [response] = await Promise.all([
+        fetch("/api/backend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "auth.me",
+            data: {},
+          }),
         }),
-      });
+        loadUsers(),
+      ]);
 
       const result = await response.json();
 
@@ -49,8 +53,6 @@ export default function UsersPage() {
         router.replace("/");
         return;
       }
-
-      await loadUsers();
     } catch (err) {
       setError("Gagal memeriksa sesi login.");
       setLoading(false);
